@@ -4,11 +4,11 @@
   config,
   ...
 }:
-
 let
   inherit (lib)
     types
     isBool
+    isList
     boolToString
     concatStringsSep
     mapAttrsToList
@@ -25,9 +25,15 @@ let
   attrToString =
     name: value:
     let
-      newvalue = if (isBool value) then (boolToString value) else value;
+      newvalue =
+        if (isBool value) then
+          [ (boolToString value) ]
+        else if (isList value) then
+          value
+        else
+          [ value ];
     in
-    "${name}=${newvalue}";
+    concatStringsSep "\n" (map (value: "${name}=${value}") newvalue);
 
   getFlags = set: concatStringsSep "\n" (mapAttrsToList attrToString set);
 
@@ -163,7 +169,6 @@ let
     let prev_hash = null
     let answer = null
   '';
-
 in
 {
   options.programs.distrobox = {
@@ -180,7 +185,15 @@ in
     enableNushellIntegration = mkShellIntegration "Nushell";
 
     containers = mkOption {
-      type = with types; attrsOf (attrsOf (either bool str));
+      type =
+        with types;
+        attrsOf (
+          attrsOf (oneOf [
+            bool
+            str
+            (listOf str)
+          ])
+        );
       default = { };
       example = ''
         {
@@ -193,6 +206,10 @@ in
           common-debian = {
             image = "debian:13";
             additional_packages = "git";
+            init_hooks = [
+              "ln -sf /usr/bin/distrobox-host-exec /usr/local/bin/docker"
+              "ln -sf /usr/bin/distrobox-host-exec /usr/local/bin/docker-compose"
+            ];
             entry = false;
           };
 
