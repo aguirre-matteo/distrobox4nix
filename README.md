@@ -116,8 +116,10 @@ overriding the original package. Default: `pkgs.distrobox`
 
 `containers`
 
-A set of containers (sets) and all its respective configurations. All the available options for each container 
-can be found in the [distrobox-assemble documentation](https://github.com/89luca89/distrobox/blob/main/docs/usage/distrobox-assemble.md). Default: {} 
+A set of containers (sets) and all its respective configurations. Each option can be either a
+bool, a string or a list of those types. If passed a list, the option will be repeated for each
+element. See `common-debian` in the [example config](#example-config). All the available options
+for each container can be found in the [distrobox-assemble documentation](https://github.com/89luca89/distrobox/blob/main/docs/usage/distrobox-assemble.md). Default: {} 
 
 `enableBashIntegration`
 
@@ -151,8 +153,12 @@ Whatever to enable or not the Nushell integration. Default: true
 
       common-debian = {
         image = "debian:13";
+        entry = true;
         additional_packages = "git";
-        entry = false;
+      ` init_hooks = [
+          "ln -sf /usr/bin/distrobox-host-exec /usr/local/bin/docker"
+          "ln -sf /usr/bin/distrobox-host-exec /usr/local/bin/docker-compose"
+        ];
       };
 
       office = {
