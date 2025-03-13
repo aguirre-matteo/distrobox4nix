@@ -1,25 +1,50 @@
-{ lib, pkgs, config, ... }:
-
+{
+  lib,
+  pkgs,
+  config,
+  ...
+}:
 let
   inherit (lib)
-    types isBool boolToString concatStringsSep mapAttrsToList removeAttrs
-    mkIf mkEnableOption mkPackageOption mkOption literalExpression;
+    types
+    isBool
+    isList
+    boolToString
+    concatStringsSep
+    mapAttrsToList
+    removeAttrs
+    mkIf
+    mkEnableOption
+    mkPackageOption
+    mkOption
+    literalExpression
+    ;
 
   cfg = config.programs.distrobox;
 
-  attrToString = name: value:
-    let newvalue = if (isBool value) then (boolToString value) else value;
-    in "${name}=${newvalue}";
+  attrToString =
+    name: value:
+    let
+      newvalue =
+        if (isBool value) then
+          [ (boolToString value) ]
+        else if (isList value) then
+          value
+        else
+          [ value ];
+    in
+    concatStringsSep "\n" (map (value: "${name}=${value}") newvalue);
 
   getFlags = set: concatStringsSep "\n" (mapAttrsToList attrToString set);
 
-  setToContainer = name: set:
+  setToContainer =
+    name: set:
     ''
       [${name}]
-    '' + (getFlags set);
+    ''
+    + (getFlags set);
 
-  getContainersConfig = set:
-    (concatStringsSep "\n\n" (mapAttrsToList setToContainer set)) + "\n";
+  getContainersConfig = set: (concatStringsSep "\n\n" (mapAttrsToList setToContainer set)) + "\n";
 
   containersFile = "${config.xdg.configHome}/distrobox/containers.ini";
   prevHashFile = "${config.xdg.configHome}/distrobox/prev-hash";
@@ -29,12 +54,14 @@ let
   # we should add some mechanism that automatically checks for changes
   # in ~/distrobox/containers.ini, and asks for building the containers.
 
-  mkShellIntegration = shell: mkOption {
-    type = types.bool;
-    default = true;
-    example = false;
-    description = "Whatever to enable the ${shell} integration.";
-  };
+  mkShellIntegration =
+    shell:
+    mkOption {
+      type = types.bool;
+      default = true;
+      example = false;
+      description = "Whatever to enable the ${shell} integration.";
+    };
 
   bashInitExtra = ''
     alias distrobox-nixos-build="distrobox-assemble create --file ${containersFile}"
@@ -142,8 +169,8 @@ let
     let prev_hash = null
     let answer = null
   '';
-
-in {
+in
+{
   options.programs.distrobox = {
     enable = mkEnableOption "distrobox";
 
@@ -158,33 +185,45 @@ in {
     enableNushellIntegration = mkShellIntegration "Nushell";
 
     containers = mkOption {
-      type = with types; attrsOf (attrsOf (either bool str));
-      default = {};
+      type =
+        with types;
+        attrsOf (
+          attrsOf (oneOf [
+            bool
+            str
+            (listOf str)
+          ])
+        );
+      default = { };
       example = ''
-      {
-        python-project = {
-          image = "fedora:40";
-          additional_packages = "python3 git";
-          init_hooks = "pip3 install numpy pandas torch torchvision";
-        };
+        {
+          python-project = {
+            image = "fedora:40";
+            additional_packages = "python3 git";
+            init_hooks = "pip3 install numpy pandas torch torchvision";
+          };
 
-        common-debian = {
-          image = "debian:13";
-          additional_packages = "git";
-          entry = false;
-        };
+          common-debian = {
+            image = "debian:13";
+            additional_packages = "git";
+            init_hooks = [
+              "ln -sf /usr/bin/distrobox-host-exec /usr/local/bin/docker"
+              "ln -sf /usr/bin/distrobox-host-exec /usr/local/bin/docker-compose"
+            ];
+            entry = false;
+          };
 
-        office = {
-          clone = "common-debian";
-          additional_packages = "libreoffice onlyoffice";
-          entry = true;
-        };
+          office = {
+            clone = "common-debian";
+            additional_packages = "libreoffice onlyoffice";
+            entry = true;
+          };
 
-        random-things = {
-          clone = "common-debian";
-          entry = false;
-        };
-      }
+          random-things = {
+            clone = "common-debian";
+            entry = false;
+          };
+        }
       '';
       description = ''
         A set of containers to be created.
@@ -192,19 +231,18 @@ in {
         To see available options see <https://github.com/89luca89/distrobox/blob/main/docs/usage/distrobox-assemble.md>.
       '';
     };
-};
+  };
 
   config = mkIf cfg.enable {
     home.packages = [ cfg.package ];
 
-    xdg.configFile."distrobox/containers.ini".source =
-      pkgs.writeText "containers.ini" (getContainersConfig cfg.containers);
+    xdg.configFile."distrobox/containers.ini".source = pkgs.writeText "containers.ini" (
+      getContainersConfig cfg.containers
+    );
 
     programs.bash.initExtra = mkIf cfg.enableBashIntegration bashInitExtra;
     programs.zsh.initExtra = mkIf cfg.enableZshIntegration zshInitExtra;
-    programs.fish.interactiveShellInit =
-      mkIf cfg.enableFishIntegration fishInitExtra;
-    programs.nushell.extraConfig =
-      mkIf cfg.enableNushellIntegration nushellInitExtra;
+    programs.fish.interactiveShellInit = mkIf cfg.enableFishIntegration fishInitExtra;
+    programs.nushell.extraConfig = mkIf cfg.enableNushellIntegration nushellInitExtra;
   };
 }
