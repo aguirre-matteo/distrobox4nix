@@ -1,67 +1,38 @@
-{
-  lib,
-  pkgs,
-  config,
-  ...
-}:
+{ lib, pkgs, config, ... }:
 let
   inherit (lib)
-    types
-    isBool
-    isList
-    boolToString
-    concatStringsSep
-    mapAttrsToList
-    removeAttrs
-    mkIf
-    mkEnableOption
-    mkPackageOption
-    mkOption
-    literalExpression
-    ;
+    types isBool isList boolToString concatStringsSep mapAttrsToList removeAttrs
+    mkIf mkEnableOption mkPackageOption mkOption literalExpression;
 
   cfg = config.programs.distrobox;
 
-  attrToString =
-    name: value:
+  attrToString = name: value:
     let
-      newvalue =
-        if (isBool value) then
-          [ (boolToString value) ]
-        else if (isList value) then
-          value
-        else
-          [ value ];
-    in
-    concatStringsSep "\n" (map (value: "${name}=${value}") newvalue);
+      newvalue = if (isBool value) then
+        [ (boolToString value) ]
+      else if (isList value) then
+        value
+      else
+        [ value ];
+    in concatStringsSep "\n" (map (value: "${name}=${value}") newvalue);
 
   getFlags = set: concatStringsSep "\n" (mapAttrsToList attrToString set);
 
-  setToContainer =
-    name: set:
+  setToContainer = name: set:
     ''
       [${name}]
-    ''
-    + (getFlags set);
+    '' + (getFlags set);
 
-  getContainersConfig = set: (concatStringsSep "\n\n" (mapAttrsToList setToContainer set)) + "\n";
-in
-{
+  getContainersConfig = set:
+    (concatStringsSep "\n\n" (mapAttrsToList setToContainer set)) + "\n";
+in {
   options.programs.distrobox = {
     enable = mkEnableOption "distrobox";
 
     package = mkPackageOption pkgs "distrobox" { };
 
     containers = mkOption {
-      type =
-        with types;
-        attrsOf (
-          attrsOf (oneOf [
-            bool
-            str
-            (listOf str)
-          ])
-        );
+      type = with types; attrsOf (attrsOf (oneOf [ bool str (listOf str) ]));
       default = { };
       example = ''
         {
@@ -103,14 +74,19 @@ in
   };
 
   config = mkIf cfg.enable {
+    assertions = [
+      (lib.hm.assertions.assertPlatform "programs.distrobox" pkgs
+        lib.platforms.linux)
+    ];
+
     home.packages = [ cfg.package ];
 
-    xdg.configFile."distrobox/containers.ini".source = pkgs.writeText "containers.ini" (
-      getContainersConfig cfg.containers
-    );
+    xdg.configFile."distrobox/containers.ini".source =
+      pkgs.writeText "containers.ini" (getContainersConfig cfg.containers);
 
     systemd.user.services.distrobox-home-manager = {
-      Unit.Description = "Build the containers declared in ~/.config/distrobox/containers.ini";
+      Unit.Description =
+        "Build the containers declared in ~/.config/distrobox/containers.ini";
       Install.WantedBy = [ "default.target" ];
 
       Service.ExecStart = "${pkgs.writeShellScript "distrobox-home-manager" ''
