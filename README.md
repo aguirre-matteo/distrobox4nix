@@ -10,27 +10,16 @@ your [Distrobox's](https://github.com/89luca89/distrobox) containers declarative
 ## General notes
 
 Since containers cannot be built during Home-Manager's config evaluation,
-because no container backend (like Docker or Podman) is available, this 
-module also provides a Shell integration that prompts the user to build
-the containers if some changes are detected.
-
-This works storing the sha256sum of the `containers.ini` file, and comparing
-it with the current file.
+because no container backend is available, this module also provides a
+Systemd Unit that looks for changes after switching the config and at boot time.
 
 There's already an open pull request for merging this module. [#6528](https://github.com/nix-community/home-manager/pull/6528)
 
-### Supported Shells
-
-- Bash ✅
-- Zsh ✅
-- Fish ✅
-- Nushell ✅
-
 # Installation
 
-## Flakes
+This guide assumes you have flakes enabled on your NixOS or Nix config.
 
-### First step
+## First step
 
 Add this flake as an input in your `flake.nix` that contains your NixOS configuration.
 
@@ -49,7 +38,7 @@ Add this flake as an input in your `flake.nix` that contains your NixOS configur
 ```
 The provided Home-Manager module can be found at `inputs.distrobox4nix.homeManagerModule`.
 
-### Second step
+## Second step
 
 Add the module to Home-Manager's `sharedModules` list.
 
@@ -79,28 +68,6 @@ outputs = { self, nixpkgs, home-manager, ... }@inputs: {
 };
 ```
 
-## Traditional
-
-The best (or at least the easier) way to install the module without using flakes
-is manually downloading `module.nix`.
-
-```shell
-curl https://github.com/aguirre-matteo/distrobox4nix/blob/<hash>/README.md
-```
-
-And importing it in our `configuration.nix` file. 
-
-```configuration.nix
-{ config, pkgs, ... }:
-
-{
-  imports = [
-    ./path/to/module.nix
-  ];
-  # ...
-}
-```
-
 # Configuration
 
 The following options are available at `programs.distrobox`:
@@ -116,26 +83,10 @@ overriding the original package. Default: `pkgs.distrobox`
 
 `containers`
 
-A set of containers (sets) and all its respective configurations. Each option can be either a
-bool, a string or a list of those types. If passed a list, the option will be repeated for each
+A set of containers and all its respective configurations. Each option can be either a
+bool, a string or a list of strings. If passed a list, the option will be repeated for each
 element. See `common-debian` in the [example config](#example-config). All the available options
-for each container can be found in the [distrobox-assemble documentation](https://github.com/89luca89/distrobox/blob/main/docs/usage/distrobox-assemble.md). Default: {} 
-
-`enableBashIntegration`
-
-Whatever to enable or not the Bash integration. Default: true
-
-`enableZshIntegration`
-
-Whatever to enable or not the Zsh integration. Default: true
-
-`enableFishIntegration`
-
-Whatever to enable or not the Fish integration. Default: true
-
-`enableNushellIntegration`
-
-Whatever to enable or not the Nushell integration. Default: true
+for the containers can be found in the [distrobox-assemble documentation](https://github.com/89luca89/distrobox/blob/main/docs/usage/distrobox-assemble.md). Default: {} 
 
 ## Example config 
 
