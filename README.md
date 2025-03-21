@@ -7,6 +7,9 @@
 This repository offers a Home-Manager module for configurating
 your [Distrobox's](https://github.com/89luca89/distrobox) containers declaratively.
 
+> [!NOTE]
+> This module has been merged on Home-Manager's unstable branch, so this repo will be available until next stable release (25.5)
+
 ## General notes
 
 Since containers cannot be built during Home-Manager's config evaluation,
